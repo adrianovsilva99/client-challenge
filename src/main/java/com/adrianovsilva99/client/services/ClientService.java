@@ -2,16 +2,14 @@ package com.adrianovsilva99.client.services;
 
 import com.adrianovsilva99.client.dto.ClientDTO;
 import com.adrianovsilva99.client.entities.Client;
+import com.adrianovsilva99.client.exceptions.ResourceNotFoundException;
 import com.adrianovsilva99.client.repositories.ClientRepository;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
 
 @Service
 public class ClientService {
@@ -21,8 +19,7 @@ public class ClientService {
 
     @Transactional(readOnly = true)
     public ClientDTO findById(Long id) {
-        Optional<Client> result = repository.findById(id);
-        Client client = result.get();
+        Client client = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Recurso não encontrado"));
         return new ClientDTO(client);
     }
 
@@ -42,15 +39,22 @@ public class ClientService {
 
     @Transactional
     public ClientDTO update(Long id, ClientDTO dto) {
-        Client entity = repository.getReferenceById(id);
-        copyDtoToEntity(dto, entity);
-        entity = repository.save(entity);
-        return new ClientDTO(entity);
+        try {
+            Client entity = repository.getReferenceById(id);
+            copyDtoToEntity(dto, entity);
+            entity = repository.save(entity);
+            return new ClientDTO(entity);
+        }
+        catch (EntityNotFoundException e) {
+            throw new  ResourceNotFoundException("Recurso não encontrado");
+        }
     }
 
     @Transactional
     public void delete(Long id) {
-        repository.deleteById(id);
+        if (!repository.existsById(id)) {
+            throw new ResourceNotFoundException("Recurso não encontrado");
+        }
     }
 
     private void copyDtoToEntity(ClientDTO dto, Client entity) {
